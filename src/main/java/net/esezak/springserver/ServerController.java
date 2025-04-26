@@ -1,7 +1,4 @@
 package net.esezak.springserver;
-
-
-import org.json.JSONObject;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,6 +15,9 @@ public class ServerController {
 
     @GetMapping("/askai")
     public String askAI(){
+        /*
+
+         */
         return "Hello World!";
     }
     @PostMapping("/postpromt")
