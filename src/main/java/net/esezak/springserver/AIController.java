@@ -1,43 +1,58 @@
 package net.esezak.springserver;
 
+import org.apache.http.HttpConnection;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
 import java.net.URI;
+import java.net.URL;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
 public class AIController {
-    private static final String model = "deepseek-r1:latest";
-    private static final String OLLAMA_URL = "http://localhost:11434/api/generate";
-    private static HttpClient client = HttpClient.newHttpClient();
-    private static HttpRequest request;
-    public static void askAI(String prompt) throws IOException, InterruptedException {
-        JSONObject json = JSONBUILDER(prompt);
-        request = HttpRequest.newBuilder()
-                .uri(URI.create("http://localhost:11434/api/generate"))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(json.toString()))
-                .build();
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        System.out.println(request.toString());
-        System.out.println("Status Code: " + response.statusCode());
-        System.out.println("Response Body: " + response.body());
+    public static String askAI(String prompt) {
+        String model = "deepseek-r1:latest";
+        String fullResponse = "";
+        try {
+            // Set up an HTTP POST request
+            URL url = new URL("http://localhost:11434/api/generate");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setDoOutput(true);
 
-    }
-    private static JSONObject JSONBUILDER(String promt){
-        JSONObject obj = new JSONObject();
-        obj.put("model",model);
-        obj.put("promt",promt);
-        obj.put("stream",false);
-        System.out.println(obj);
-        return obj;
-    }
-    public static void aistreatest(){
+            // Create request JSON
+            JSONObject requestJson = new JSONObject();
+            requestJson.put("model", model);
+            requestJson.put("prompt", prompt);
+            requestJson.put("stream", false);
 
+            // Send request
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(requestJson.toString().getBytes());
+            }
+
+            // Get response
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
+                String responseLine = br.readLine();
+                JSONObject responseJson = new JSONObject(responseLine);
+                fullResponse = responseJson.getString("response");
+            }
+
+            System.out.println(fullResponse);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return fullResponse;
     }
-    public static void main(String[] args) throws IOException, InterruptedException {
-        askAI("Hello");
+
+    public static void main(String[] args) throws Exception {
+        System.out.println(askAI("What is your name?"));
     }
 }
