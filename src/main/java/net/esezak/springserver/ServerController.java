@@ -39,7 +39,7 @@ public class ServerController {
     }
 
     @GetMapping("/trigger")
-    public void generateAiResponse(){
+    public String generateAiResponse(){
         JSONObject data = new JSONObject();
         data.put("threshold", savedThreshold);
         data.put("prediction", regressionPrediction);
@@ -50,7 +50,7 @@ public class ServerController {
             }
         }
         data.put("currentConsumption",cumulativeData);
-        AIController.askAI(data.toString());
+        return AIController.askAI(data.toString());
     }
 
     @GetMapping("/regression")
