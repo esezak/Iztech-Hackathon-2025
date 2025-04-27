@@ -49,8 +49,11 @@ public class ServerController {
                 cumulativeData.add(u.getCumulativeUsage());
             }
         }
-        data.put("currentConsumption",cumulativeData);
-        return AIController.askAI(data.toString());
+        data.put("aggregate",cumulativeData.toString());
+        System.out.println("Data::"+data);
+        String answer = AIController.askAI(data.toString());
+        System.out.println("Answer::" + answer);
+        return answer;
     }
 
     @GetMapping("/regression")

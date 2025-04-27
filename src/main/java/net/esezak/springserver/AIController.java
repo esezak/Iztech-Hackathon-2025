@@ -17,8 +17,9 @@ import java.net.http.HttpResponse;
 public class AIController {
     private static String parsejson(String json,String prompt) {
         JSONObject jsonObject = new JSONObject(json);
-        prompt = prompt.replace("<threshold>",jsonObject.getString("threshold"));
-        prompt = prompt.replace("<prediction>",jsonObject.getString("prediction"));
+        String temp =
+        prompt = prompt.replace("<threshold>", String.valueOf(jsonObject.getDouble("threshold")));
+        prompt = prompt.replace("<prediction>",String.valueOf(jsonObject.getDouble("prediction")));
         prompt = prompt.replace("<aggregate>",jsonObject.getString("aggregate"));
         return prompt;
     }
