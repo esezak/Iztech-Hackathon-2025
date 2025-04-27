@@ -50,6 +50,7 @@ public class ServerController {
         return response;
     }
 
+
     @PostMapping("/postpromt")
     public String postPromt(String promt) {
         return AIController.askAI(promt);
