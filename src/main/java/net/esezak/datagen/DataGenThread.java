@@ -24,19 +24,21 @@ public class DataGenThread implements Runnable {
         int year = 2025;
 
         while (!isDone) {
-            double usageHourly = 0.47869d;
+            double usageHourly = 0.57869d;
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
 
-            double usageRandom = rd.nextDouble(0.2068035, 0.4886725);
-            int dice = rd.nextInt(0, 11);
-            if (dice <= 4) {
+            double usageRandom = rd.nextDouble(0.3068035, 0.4886725);
+            int dice = rd.nextInt(0, 101);
+            if (dice <= 30) {
+                usageHourly += usageRandom * 1.3;
+            } else if (dice <= 50) {
                 usageHourly += usageRandom;
-            } else if (dice == 6 || dice == 5) {
-                usageHourly += usageRandom * 1.2;
+            } else if (dice <= 80) {
+                usageHourly -= usageRandom * 1.3;
             } else {
                 usageHourly -= usageRandom;
             }

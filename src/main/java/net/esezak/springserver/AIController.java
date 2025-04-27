@@ -15,18 +15,19 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
 public class AIController {
-    private static String parsejson(String json,String prompt) {
+    private static String parsejson(String json, String prompt) {
         JSONObject jsonObject = new JSONObject(json);
         String temp =
-        prompt = prompt.replace("<threshold>", String.valueOf(jsonObject.getDouble("threshold")));
-        prompt = prompt.replace("<prediction>",String.valueOf(jsonObject.getDouble("prediction")));
-        prompt = prompt.replace("<aggregate>",jsonObject.getString("aggregate"));
+                prompt = prompt.replace("<threshold>", String.valueOf(jsonObject.getDouble("threshold")));
+        prompt = prompt.replace("<prediction>", String.valueOf(jsonObject.getDouble("prediction")));
+        prompt = prompt.replace("<aggregate>", jsonObject.getString("aggregate"));
         return prompt;
     }
+
     public static String askAI(String json) {
         String model = "gemma3:12b";
         String fullResponse = "";
-        String prompt ="""
+        String prompt = """
                 You will receive data about a household electricity usage.
                 1. Your first data is the threshold of the total allowed energy consumption of a given month.
                 2. Your second data is the predicted projection based on previous the consumption in this month.
@@ -38,7 +39,7 @@ public class AIController {
                 10. If you find any sudden change between two days notify the user by saying that they need to decrease power consumption.
                 11. The possible solutions for decreasing power consumption and notifying of user must be itemized.
                 """;
-        prompt = parsejson(json,prompt);
+        prompt = parsejson(json, prompt);
         System.out.println("Changed Prompt::" + prompt + "\n");
         try {
 
@@ -77,14 +78,15 @@ public class AIController {
         long end = System.currentTimeMillis();
         System.out.println("Total time: " + (end - start) + "ms");
     }
+
     private static String trimResponse(String response) {
         String marker = "1.";
         int startIndex = response.indexOf(marker);
-        if(startIndex != -1) {
+        if (startIndex != -1) {
             String sub = response.substring(startIndex);
             System.out.println(sub);
             return sub;
-        }else{
+        } else {
             System.out.println("marker not found");
             return null;
         }

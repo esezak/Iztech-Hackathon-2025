@@ -1,38 +1,38 @@
-import React, { useState } from "react";
+import React, {useState, useEffect} from "react";
 import './Dashboard.css';
-import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, ReferenceLine } from "recharts";
+import {LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, ReferenceLine} from "recharts";
+import axios from 'axios';
 
 function Dashboard() {
     const [billData, setBillData] = useState([]);
+    const [regressionData, setRegressionData] = useState([]);
     const [suggestionsVisible, setSuggestionsVisible] = useState(false);
     const [threshold, setThreshold] = useState('');
     const [savedThreshold, setSavedThreshold] = useState(null);
     const [showThresholdPopup, setShowThresholdPopup] = useState(true);
+    const [aiAnswer, setAiAnswer] = useState('');
 
-    const handleSetThreshold = () => {
-        if (threshold) {
-            setSavedThreshold(Number(threshold));
-            setShowThresholdPopup(false);
-        }
-    };
+    useEffect(() => {
+        document.title = "ParaPlan"; // <-- whatever you want the tab to say
+    }, []);
+    const fetchData = async () => {
+        try {
+            const billResponse = await axios.get('http://localhost:8080/data');
+            const regressionResponse = await axios.get('http://localhost:8080/regression');
 
-    const handleUpdate = () => {
-        setBillData(prevData => {
-            if (prevData.length >= 30) {
-                setSuggestionsVisible(false);
-                return [];
-            }
+            setBillData(billResponse.data);
 
-            const lastTotal = prevData.length > 0 ? prevData[prevData.length - 1].total : 0;
-            const newAmount = Math.floor(Math.random() * 26) + 25; // 25-50 arası
-            const newTotal = lastTotal + newAmount;
-            const updatedData = [...prevData, { day: prevData.length + 1, total: newTotal }];
+            const {a, b} = regressionResponse.data;
+            const regressionPoints = Array.from({length: 30}, (_, i) => ({
+                day: i + 1,
+                regression: a * (i + 1) + b,
+            }));
+            setRegressionData(regressionPoints);
 
-            const regression = getRegressionLine(updatedData);
-            const day30 = regression.find(p => p.day === 30);
-
-            if (day30 && savedThreshold !== null) {
-                if (day30.regression >= savedThreshold) {
+            if (regressionResponse.data['day-30'] && savedThreshold !== null) {
+                if (regressionResponse.data['day-30'] >= savedThreshold) {
+                    const aiResponse = await axios.get('http://localhost:8080/trigger');
+                    setAiAnswer(aiResponse.data);
                     setSuggestionsVisible(true);
                 } else {
                     setSuggestionsVisible(false);
@@ -40,37 +40,37 @@ function Dashboard() {
             } else {
                 setSuggestionsVisible(false);
             }
-
-            return updatedData;
-        });
+        } catch (error) {
+            console.error('Error fetching data:', error);
+        }
     };
 
+    const handleSetThreshold = async () => {
+        if (threshold) {
+            setSavedThreshold(Number(threshold));
+            setShowThresholdPopup(false);
 
-    const getRegressionLine = (data) => {
-        if (data.length < 1) return [];
+            try {
+                await axios.post('http://localhost:8080/threshold', {value: Number(threshold)});
+                console.log("Threshold sent successfully");
+            } catch (error) {
+                console.error("Failed to send threshold:", error);
+            }
 
-        const n = data.length;
-        const sumX = data.reduce((acc, point) => acc + point.day, 0);
-        const sumY = data.reduce((acc, point) => acc + point.total, 0);
-        const sumXY = data.reduce((acc, point) => acc + point.day * point.total, 0);
-        const sumX2 = data.reduce((acc, point) => acc + point.day * point.day, 0);
-
-        const slope = n > 1 ? (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX) : 0;
-        const intercept = n > 1 ? (sumY - slope * sumX) / n : sumY / (sumX || 1);
-
-        return Array.from({ length: 30 }, (_, i) => ({
-            day: i + 1,
-            regression: slope * (i + 1) + intercept,
-        }));
+            fetchData();
+        }
     };
 
-    const regressionData = getRegressionLine(billData);
+    const handleUpdate = () => {
+        fetchData();
+    };
 
-    const mergedData = Array.from({ length: 30 }, (_, i) => ({
+    const mergedData = Array.from({length: 30}, (_, i) => ({
         day: i + 1,
-        total: billData[i]?.total ?? null,
-        regression: regressionData[i]?.regression ?? null,
+        total: billData.find(d => d.day === (i + 1))?.total ?? null,
+        regression: regressionData.find(d => d.day === (i + 1))?.regression ?? null,
     }));
+
 
     return (
         <div className="container">
@@ -85,7 +85,9 @@ function Dashboard() {
                             onChange={(e) => setThreshold(e.target.value)}
                             className="threshold-input"
                         />
-                        <button onClick={handleSetThreshold} className="set-threshold-button">Set</button>
+                        <button onClick={handleSetThreshold} className="set-threshold-button">
+                            Set
+                        </button>
                     </div>
                 </div>
             )}
@@ -94,17 +96,40 @@ function Dashboard() {
                 <>
                     <div className="graphSection">
                         <div className="graphBox">
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
                                 <LineChart
                                     width={800}
                                     height={400}
-                                    data={mergedData.length > 0 ? mergedData : Array.from({ length: 30 }, (_, i) => ({ day: i + 1, total: 0 }))}
-                                    margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+                                    data={mergedData}
+                                    margin={{top: 20, right: 20, bottom: 20, left: 20}}
                                 >
-                                    <XAxis type="number" dataKey="day" domain={[1, 30]} tickCount={30} interval={0} tick={{ fontSize: 14, fill: '#333' }} />
-                                    <YAxis domain={[0, Math.max(1000, savedThreshold)]} tick={{ fontSize: 14, fill: '#333' }} />
-                                    <CartesianGrid stroke="#ccc" />
-                                    <Tooltip />
+                                    <XAxis
+                                        type="number"
+                                        dataKey="day"
+                                        domain={[1, 30]}
+                                        tickCount={30}
+                                        interval={0}
+                                        tick={{ fontSize: 14, fill: '#333' }}
+                                        label={{
+                                            value: 'Day',
+                                            position: 'insideBottom',
+                                            offset: -5,
+                                            style: { fill: '#333', fontSize: 16, fontWeight: 'bold' } // label styling
+                                        }}
+                                    />
+
+                                    <YAxis
+                                        domain={[0, Math.max(500, savedThreshold ?? 0)]}
+                                        tick={{ fontSize: 14, fill: '#333' }}
+                                        label={{
+                                            value: 'Energy Usage (kWh)',
+                                            angle: -90,
+                                            position: 'insideLeft',
+                                            style: { fill: '#333', fontSize: 16, fontWeight: 'bold' }
+                                        }}
+                                    />
+                                    <CartesianGrid stroke="#ccc"/>
+                                    <Tooltip/>
                                     {savedThreshold !== null && (
                                         <ReferenceLine
                                             y={savedThreshold}
@@ -119,14 +144,13 @@ function Dashboard() {
                                             }}
                                         />
                                     )}
-                                    <Line type="monotone" dataKey="total" stroke="#8884d8" name="Bill Amount" connectNulls={false} />
-                                    {billData.length > 1 && (
-                                        <Line type="monotone" dataKey="regression" stroke="#82ca9d" name="Trend Line" dot={false} />
-                                    )}
+                                    <Line type="monotone" dataKey="total" stroke="#8884d8" name="Bill Amount"
+                                          connectNulls={false}/>
+                                    <Line type="monotone" dataKey="regression" stroke="#82ca9d" name="Trend Line"
+                                          dot={false}/>
                                 </LineChart>
 
-
-                                <button className="updateButton" onClick={handleUpdate} style={{ marginTop: '20px' }}>
+                                <button className="updateButton" onClick={handleUpdate} style={{marginTop: '20px'}}>
                                     Update
                                 </button>
                             </div>
@@ -135,37 +159,14 @@ function Dashboard() {
 
                     <div className="suggestionsSection">
                         <h3>Suggestions</h3>
-                        <div className="suggestionsTableContainer">
-                            <table className="suggestionsTable">
-                                <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Suggestion</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                {suggestionsVisible ? (
-                                    <>
-                                        <tr><td>1</td><td>Optimize usage: Turn off devices when not in use to save energy.</td></tr>
-                                        <tr><td>2</td><td>Use smart devices: Automate energy savings with smart plugs and thermostats.</td></tr>
-                                        <tr><td>3</td><td>Turn off standby devices: Unplug devices that consume standby power.</td></tr>
-                                        <tr><td>4</td><td>Switch to LED lights: Use LEDs to cut lighting costs dramatically.</td></tr>
-                                        <tr><td>5</td><td>Adjust thermostat settings: Fine-tune heating and cooling for efficiency.</td></tr>
-                                        <tr><td>6</td><td>Install solar panels: Reduce dependency on the grid by producing your own power.</td></tr>
-                                        <tr><td>7</td><td>Use energy-efficient appliances: Replace old devices with energy-star rated ones.</td></tr>
-                                        <tr><td>8</td><td>Insulate doors and windows: Keep your home's temperature stable and lower HVAC needs.</td></tr>
-                                        <tr><td>9</td><td>Schedule HVAC maintenance: Ensure systems work efficiently and save energy.</td></tr>
-                                        <tr><td>10</td><td>Use motion sensor lights: Lights turn on only when needed, saving energy automatically.</td></tr>
-                                    </>
-                                ) : (
-                                    <tr>
-                                        <td colSpan="2" style={{ textAlign: "center", color: "#aaa" }}>
-                                            No suggestions yet.
-                                        </td>
-                                    </tr>
-                                )}
-                                </tbody>
-                            </table>
+                        <div className="suggestionsTextContainer">
+                            {suggestionsVisible ? (
+                                <p style={{fontSize: "16px", lineHeight: "1.8", color: "#333", whiteSpace: "pre-line"}}>
+                                    {aiAnswer}
+                                </p>
+                            ) : (
+                                <p style={{textAlign: "center", color: "#aaa"}}>No suggestions yet.</p>
+                            )}
                         </div>
                     </div>
                 </>

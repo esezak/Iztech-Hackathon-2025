@@ -39,7 +39,7 @@ public class ServerController {
     }
 
     @GetMapping("/trigger")
-    public String generateAiResponse(){
+    public String generateAiResponse() {
         JSONObject data = new JSONObject();
         data.put("threshold", savedThreshold);
         data.put("prediction", regressionPrediction);
@@ -49,8 +49,8 @@ public class ServerController {
                 cumulativeData.add(u.getCumulativeUsage());
             }
         }
-        data.put("aggregate",cumulativeData.toString());
-        System.out.println("Data::"+data);
+        data.put("aggregate", cumulativeData.toString());
+        System.out.println("Data::" + data);
         String answer = AIController.askAI(data.toString());
         System.out.println("Answer::" + answer);
         return answer;
@@ -61,10 +61,10 @@ public class ServerController {
         SimpleRegression regression = dataGenThread.getRegressionResult();
         Map<String, Object> response = new HashMap<>();
         response.put("a", regression.getSlope());
-        response.put("b",regression.getIntercept());
+        response.put("b", regression.getIntercept());
 
         regressionPrediction = regression.predict(30);
-        response.put("day-30",regressionPrediction);
+        response.put("day-30", regressionPrediction);
 
         return response;
     }
