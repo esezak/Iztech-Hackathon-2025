@@ -4,46 +4,39 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.math3.stat.regression.SimpleRegression;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 public class DataGenThread implements Runnable {
     private static double cumulativeUsage = 0d;
-    private static ArrayList<UsageData> usageData = new ArrayList<>();
+    private static List<UsageData> usageData = new ArrayList<>();
     private boolean isDone = false;
-
-    public static void main(String[] args) {
-        DataGenThread t = new DataGenThread();
-        Thread thread = new Thread(t);
-        try{
-            thread.start();
-            Thread.sleep(5000);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     @Override
     public void run() {
+        System.out.println("Thread STARTED");
         Random rd = new Random(System.currentTimeMillis());
         int hour = 1;
         int day = 1;
         int month = 4;
         int year = 2025;
 
-        double usageHourly = 0.57869d;
-
         while (!isDone) {
+            double usageHourly = 0.57869d;
             try {
-                Thread.sleep(5);
+                Thread.sleep(100);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
 
-            double usageRandom = rd.nextDouble(0.04629, 0.115738);
-            int dice = rd.nextInt(0, 2);
-            if (dice == 0) {
+            double usageRandom = rd.nextDouble(0.0868035, 0.1446725);
+            int dice = rd.nextInt(0, 11);
+            if (dice <= 5) {
                 usageHourly += usageRandom;
+            } else if (dice == 6) {
+                usageHourly += usageRandom * 1.2;
             } else {
                 usageHourly -= usageRandom;
             }
@@ -52,12 +45,13 @@ public class DataGenThread implements Runnable {
 
             hour++;
             if (hour == 25) {
-                hour = 0;
+                hour = 1;
                 day++;
                 if (day == 31) {
                     day = 1;
                     month++;
                     cumulativeUsage = 0;
+                    usageData = new ArrayList<>();
                     if (month == 13) {
                         month = 1;
                         year++;
@@ -77,92 +71,31 @@ public class DataGenThread implements Runnable {
         try {
             json = mapper.writeValueAsString(usageData);
             System.out.println(json);
-            System.out.println("size:::"+ usageData.size());
+            System.out.println("size::" + usageData.size());
             return json;
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
     }
 
-//    public SimpleRegression getRegressionResult(){
-//        String jsonArrayString = getUsageData();
-//        SimpleRegression regression = new SimpleRegression();
-//        ObjectMapper mapper = new ObjectMapper();
-//        try {
-//            List<UsageData> usageDataList = mapper.readValue(jsonArrayString, new TypeReference<>() {});
-//            if (!usageDataList.isEmpty()) {
-//                int month = usageDataList.getFirst().getMonth();
-//                for (UsageData u : usageDataList) {
-//                    if (u.getHour() == 24 && u.getMonth() == month && u.getDay() < 20) {
-//                        System.out.println(u.getCumulativeUsage());
-//                        regression.addData(u.getDay(), u.getCumulativeUsage());
-//                        System.out.println(u.getDay());
-//                    }
-//                }
-//            }
-//        } catch (JsonProcessingException e) {
-//            throw new RuntimeException(e);
-//        }
-//        System.out.println("aaaaaaa::::"+regression.predict(30));
-//        return null;
-//    }
-
-}
-
-class UsageData {
-    private double cumulativeUsage;
-    private int hour;
-    private int day;
-    private int month;
-    private int year;
-
-    public UsageData(){}
-
-    public UsageData(double cumulativeUsage, int day, int hour, int month, int year) {
-        this.cumulativeUsage = cumulativeUsage;
-        this.hour = hour;
-        this.day = day;
-        this.month = month;
-        this.year = year;
+    public List<UsageData> getUsageDataList() {
+        return usageData;
     }
 
-    public double getCumulativeUsage() {
-        return cumulativeUsage;
-    }
-
-    public void setCumulativeUsage(double cumulativeUsage) {
-        this.cumulativeUsage = cumulativeUsage;
-    }
-
-    public int getHour() {
-        return hour;
-    }
-
-    public void setHour(int hour) {
-        this.hour = hour;
-    }
-
-    public int getDay() {
-        return day;
-    }
-
-    public void setDay(int day) {
-        this.day = day;
-    }
-
-    public int getMonth() {
-        return month;
-    }
-
-    public void setMonth(int month) {
-        this.month = month;
-    }
-
-    public int getYear() {
-        return year;
-    }
-
-    public void setYear(int year) {
-        this.year = year;
+    public SimpleRegression getRegressionResult() {
+        SimpleRegression regression = new SimpleRegression();
+        List<UsageData> usageDataList = getUsageDataList();
+        if (!usageDataList.isEmpty()) {
+            for (UsageData u : usageDataList) {
+                if (u.getHour() == 24) {
+                    System.out.println("Day:" + u.getDay() + "::Month:" + u.getMonth() + "::" + u.getCumulativeUsage());
+                    regression.addData(u.getDay(), u.getCumulativeUsage());
+                }
+            }
+            System.out.println("Regression value at day 30::::" + regression.predict(30));
+            return regression;
+        }
+        return null;
     }
 }
+

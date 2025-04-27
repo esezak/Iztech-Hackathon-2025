@@ -20,25 +20,22 @@ public class AIController {
         String model = "gemma3:12b";
         String fullResponse = "";
         try {
-            // Set up an HTTP POST request
+
             URL url = new URL("http://localhost:11434/api/generate");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setDoOutput(true);
 
-            // Create request JSON
             JSONObject requestJson = new JSONObject();
             requestJson.put("model", model);
             requestJson.put("prompt", prompt);
             requestJson.put("stream", false);
 
-            // Send request
             try (OutputStream os = conn.getOutputStream()) {
                 os.write(requestJson.toString().getBytes());
             }
 
-            // Get response
             try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
                 String responseLine = br.readLine();
                 JSONObject responseJson = new JSONObject(responseLine);
