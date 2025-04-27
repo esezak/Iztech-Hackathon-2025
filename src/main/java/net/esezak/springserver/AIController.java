@@ -15,10 +15,30 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
 public class AIController {
-    public static String askAI(String prompt) {
-//        String model = "deepseek-r1:latest";
+    private static String parsejson(String json,String prompt) {
+        JSONObject jsonObject = new JSONObject(json);
+        prompt = prompt.replace("<threshold>",jsonObject.getString("threshold"));
+        prompt = prompt.replace("<prediction>",jsonObject.getString("prediction"));
+        prompt = prompt.replace("<aggregate>",jsonObject.getString("aggregate"));
+        return prompt;
+    }
+    public static String askAI(String json) {
         String model = "gemma3:12b";
         String fullResponse = "";
+        String prompt ="""
+                You will receive data about a household electricity usage.
+                1. Your first data is the threshold of the total allowed energy consumption of a given month.
+                2. Your second data is the predicted projection based on previous the consumption in this month.
+                5. Your third data is an aggregate and represents the daily electricity consumption.
+                6. The Data: <threshold>,<prediction>
+                7. Aggregate: <aggregate>
+                8. Your task is to determine if the prediction is bellow the max allowed energy consumption.
+                9. If the prediction exceeds the threshold you should recommend solutions to reduce the overall consumption.
+                10. If you find any sudden change between two days notify the user by saying that they need to decrease power consumption.
+                11. The possible solutions for decreasing power consumption and notifying of user must be itemized.
+                """;
+        prompt = parsejson(json,prompt);
+        System.out.println("Changed Prompt::" + prompt + "\n");
         try {
 
             URL url = new URL("http://localhost:11434/api/generate");
@@ -46,32 +66,13 @@ public class AIController {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        //String response = fullResponse.split("</think>")[1];
-        //System.out.println("Summary:\n"+response);
-//        System.out.println("Full response: " + fullResponse);
-        return fullResponse;
+
+        return trimResponse(fullResponse);
     }
 
     public static void main(String[] args) throws Exception {
-        String prompt = """
-                You will receive data about a household electricity usage.
-                1. Your first data is the threshold of the total allowed energy consumption of a given month.
-                2. Your second data is the predicted projection based on previous the consumption in this month.
-                3. Your third data is the current total power consumed for the current month.
-                4. Your fourth data is the current day of the month.
-                5. Your fifth data is an aggregate and represents the amount of change observed every day.
-                6. The Data: 400, 421, 391, 15
-                7. Aggregate: 13, 13, 14, 14, 14, 14, 24, 14, 14, 14, 24, 13, 13, 14, 14
-                8. Your task is to determine if the prediction is bellow the max allowed energy consumption.
-                9. If the prediction exceeds the threshold you should recommend solutions to reduce the overall consumption.
-                10. If the prediction does not exceed the threshold then tell the user an encouraging quote.
-                11. If you find any sudden change between two days notify the user by saying that they need to decrease power consumption.
-                12. The possible solutions for decreasing power consumption and notifying of user must be itemized.
-                13. Only write the solutions for reducing the power consumptions
-                """;
+
         long start = System.currentTimeMillis();
-//        askAI(prompt);
-        trimResponse(askAI(prompt));
         long end = System.currentTimeMillis();
         System.out.println("Total time: " + (end - start) + "ms");
     }
