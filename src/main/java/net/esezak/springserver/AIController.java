@@ -8,11 +8,12 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
-import java.net.URI;
 import java.net.URL;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import com.openai.client.OpenAIClient;
+import com.openai.client.okhttp.OpenAIOkHttpClient;
+import com.openai.models.ChatModel;
+import com.openai.models.responses.Response;
+import com.openai.models.responses.ResponseCreateParams;
 
 public class AIController {
     private static String parsejson(String json, String prompt) {
@@ -25,7 +26,10 @@ public class AIController {
     }
 
     public static String askAI(String json) {
-        String model = "gemma3:12b";
+//        String model = "gemma3:12b";
+        OpenAIClient client = OpenAIOkHttpClient.builder()
+                .apiKey("")
+                .build();
         String fullResponse = "";
         String prompt = """
                 You will receive data about a household electricity usage.
@@ -39,37 +43,50 @@ public class AIController {
                 10. If you find any sudden change between two days notify the user by saying that they need to decrease power consumption.
                 11. The possible solutions for decreasing power consumption and notifying of user must be itemized.
                 """;
+
         prompt = parsejson(json, prompt);
-        System.out.println("Changed Prompt::" + prompt + "\n");
-        try {
+//        System.out.println("Changed Prompt::" + prompt + "\n");
+//        try {
+//
+//            URL url = new URL("http://localhost:11434/api/generate");
+//            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+//            conn.setRequestMethod("POST");
+//            conn.setRequestProperty("Content-Type", "application/json");
+//            conn.setDoOutput(true);
+//
+//            JSONObject requestJson = new JSONObject();
+//            requestJson.put("model", model);
+//            requestJson.put("prompt", prompt);
+//            requestJson.put("stream", false);
+//
+//            try (OutputStream os = conn.getOutputStream()) {
+//                os.write(requestJson.toString().getBytes());
+//            }
+//
+//            try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
+//                String responseLine = br.readLine();
+//                JSONObject responseJson = new JSONObject(responseLine);
+//                fullResponse = responseJson.getString("response");
+//            }
+//
+//
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
 
-            URL url = new URL("http://localhost:11434/api/generate");
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("POST");
-            conn.setRequestProperty("Content-Type", "application/json");
-            conn.setDoOutput(true);
+        ResponseCreateParams params = ResponseCreateParams.builder()
+                .input(prompt)
+                .model(ChatModel.GPT_4_1)
+                .build();
 
-            JSONObject requestJson = new JSONObject();
-            requestJson.put("model", model);
-            requestJson.put("prompt", prompt);
-            requestJson.put("stream", false);
+        Response response = client.responses().create(params);
 
-            try (OutputStream os = conn.getOutputStream()) {
-                os.write(requestJson.toString().getBytes());
-            }
+        String answer = response.output()
+                .get(0)
+                .message().toString();
 
-            try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
-                String responseLine = br.readLine();
-                JSONObject responseJson = new JSONObject(responseLine);
-                fullResponse = responseJson.getString("response");
-            }
-
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        return trimResponse(fullResponse);
+        System.out.println("Answer: " + trimResponse(answer));
+        return trimResponse(answer);
     }
 
     public static void main(String[] args) throws Exception {
@@ -80,10 +97,10 @@ public class AIController {
     }
 
     private static String trimResponse(String response) {
-        String marker = "1.";
+        String marker = "text=";
         int startIndex = response.indexOf(marker);
         if (startIndex != -1) {
-            String sub = response.substring(startIndex);
+            String sub = response.substring(startIndex+marker.length());
             System.out.println(sub);
             return sub;
         } else {
